@@ -1,0 +1,4 @@
+sceneSetups:
+- path: Assets/edgeSample.unity
+  isLoaded: 1
+  isActive: 1
