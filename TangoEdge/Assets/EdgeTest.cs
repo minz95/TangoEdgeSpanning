@@ -60,17 +60,6 @@ public class EdgeTest : MonoBehaviour, ITangoVideoOverlay
             Vector2 guiPosition = Vector2.zero;
             if (t.phase == TouchPhase.Began)
             {
-                // Construct a ray from the current touch coordinates
-                //Ray ray = Camera.main.ScreenPointToRay(t.position);
-                //if (Physics.Raycast(Camera.main.ScreenPointToRay(t.position), out hit))
-                /*   
-                end_points = new Vector3[2];
-                end_points[0] = Vector3.zero;
-                end_points[1] = Vector3.zero;
-                nearest_on_edge = Vector3.zero;
-                */
-                // Touch t = Input.GetTouch(i);
-                // Debug.Log("<<<<<<<<<<<<<<<< x position: " + t.position.x);
                 guiPosition = new Vector2(t.position.x, Screen.height - t.position.y);
 
                 m_camera = Camera.main; 
@@ -89,11 +78,14 @@ public class EdgeTest : MonoBehaviour, ITangoVideoOverlay
 
                 if (m_pointCloud != null)
                 {
-                    bool edgeResult = m_pointCloud.FindEdges(m_imagebuffer, m_camera, guiPosition,
+                    Vector3 touch_world = m_camera.ScreenToWorldPoint(t.position);
+                    Vector2 n_touch = new Vector2(touch_world.x, touch_world.y);
+                    bool edgeResult = m_pointCloud.FindEdges(m_imagebuffer, m_camera, n_touch,
                         out edges, out num_edges);
                     if (edgeResult == true)
                     {
-                        Debug.Log("Touch Points : x  " + t.position.x + " y  " + t.position.y);
+                        
+                        Debug.Log("Touch Points : x  " + touch_world.x + " y  " + touch_world.y);
                         m_edgeCount = num_edges;
                         m_startPoint = new Vector3[num_edges];
                         m_endPoint = new Vector3[num_edges];
@@ -101,15 +93,15 @@ public class EdgeTest : MonoBehaviour, ITangoVideoOverlay
                         for(int i = 0; i < num_edges; i++)
                         {
                             m_startPoint[i] = new Vector3(edges[i].end_points_x1,
-                                                          -edges[i].end_points_y1,
+                                                          edges[i].end_points_y1,
                                                           edges[i].end_points_z1);
                             Debug.Log(m_startPoint[i]);
                             m_endPoint[i] = new Vector3(edges[i].end_points_x2,
-                                                        -edges[i].end_points_y2,
+                                                        edges[i].end_points_y2,
                                                         edges[i].end_points_z2);
                             Debug.Log(m_endPoint[i]);
                             m_nearestPoint[i] = new Vector3(edges[i].closest_point_on_edge_x,
-                                                            -edges[i].closest_point_on_edge_y,
+                                                            edges[i].closest_point_on_edge_y,
                                                             edges[i].closest_point_on_edge_z);
                             Debug.Log(m_nearestPoint[i]);
                         }

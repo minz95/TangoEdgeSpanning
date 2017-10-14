@@ -580,7 +580,35 @@ public class TangoPointCloud : MonoBehaviour, ITangoPointCloud
             out edges,
             out num_edges
             );
-        
+
+        Vector3[] start = new Vector3[num_edges];
+        Vector3[] end = new Vector3[num_edges];
+        Vector3[] near = new Vector3[num_edges];
+        TangoSupport.TangoSupportEdge[] n_edges = new TangoSupport.TangoSupportEdge[num_edges];
+        for(int j = 0; j < num_edges; j++)
+        {
+            start[j] = new Vector3(edges[j].end_points_x1, edges[j].end_points_y1, edges[j].end_points_z1);
+            end[j] = new Vector3(edges[j].end_points_x2, edges[j].end_points_y2, edges[j].end_points_z2);
+            near[j] = new Vector3(edges[j].closest_point_on_edge_x, edges[j].closest_point_on_edge_y, 
+                edges[j].closest_point_on_edge_z);
+            start[j] = m_mostRecentUnityWorldTDepthCamera.MultiplyVector(start[j]);
+            end[j] = m_mostRecentUnityWorldTDepthCamera.MultiplyVector(end[j]);
+            near[j] = m_mostRecentUnityWorldTDepthCamera.MultiplyVector(near[j]);
+            Vector3.Normalize(start[j]);
+            Vector3.Normalize(end[j]);
+            Vector3.Normalize(near[j]);
+            n_edges[j].end_points_x1 = start[j][0];
+            n_edges[j].end_points_y1 = start[j][1];
+            n_edges[j].end_points_z1 = start[j][2];
+            n_edges[j].end_points_x2 = end[j][0];
+            n_edges[j].end_points_y2 = end[j][1];
+            n_edges[j].end_points_z2 = end[j][2];
+            n_edges[j].closest_point_on_edge_x = near[j][0];
+            n_edges[j].closest_point_on_edge_y = near[j][1];
+            n_edges[j].closest_point_on_edge_z = near[j][2];
+        }
+        edges = n_edges;
+
         return returnValue;
     }
 
