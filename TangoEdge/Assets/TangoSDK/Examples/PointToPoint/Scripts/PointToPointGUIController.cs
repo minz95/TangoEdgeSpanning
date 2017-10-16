@@ -106,6 +106,7 @@ public class PointToPointGUIController : MonoBehaviour, ITangoDepth
         if (Input.GetMouseButtonDown(0))
         {
              StartCoroutine(_WaitForDepth(Input.mousePosition));
+            Debug.Log("<<<<<<<<<<<<<<<< mouse position: " + Input.mousePosition);
         }
 
         if (Input.GetKey(KeyCode.Escape))
@@ -200,6 +201,7 @@ public class PointToPointGUIController : MonoBehaviour, ITangoDepth
             // Index is valid
             m_startPoint = m_endPoint;
             m_endPoint = m_pointCloud.m_points[pointIndex];
+            Debug.Log("<<<<<<<<<<<<<<<< start point, end point: " + m_startPoint + ", " + m_endPoint);
 
             m_distance = Vector3.Distance(m_startPoint, m_endPoint);
         }

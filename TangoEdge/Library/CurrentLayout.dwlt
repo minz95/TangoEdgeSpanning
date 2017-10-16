@@ -45,7 +45,7 @@ MonoBehaviour:
   m_MinSize: {x: 683, y: 492}
   m_MaxSize: {x: 14004, y: 14042}
   vertical: 0
-  controlID: 107
+  controlID: 95
 --- !u!114 &3
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -210,7 +210,7 @@ MonoBehaviour:
   m_MinSize: {x: 406, y: 492}
   m_MaxSize: {x: 10002, y: 14042}
   vertical: 1
-  controlID: 108
+  controlID: 110
 --- !u!114 &10
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -234,7 +234,7 @@ MonoBehaviour:
   m_MinSize: {x: 406, y: 221}
   m_MaxSize: {x: 8006, y: 4021}
   vertical: 0
-  controlID: 109
+  controlID: 111
 --- !u!114 &11
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -355,18 +355,18 @@ MonoBehaviour:
     m_ShowAllHits: 0
     m_SearchArea: 0
     m_Folders:
-    - Assets/TangoSDK/TangoSupport/Scripts
+    - Assets/TangoSDK/Examples/Scenes
   m_ViewMode: 1
   m_StartGridSize: 64
   m_LastFolders:
-  - Assets/TangoSDK/TangoSupport/Scripts
+  - Assets/TangoSDK/Examples/Scenes
   m_LastFoldersGridSize: -1
   m_LastProjectPath: C:\Users\user\Desktop\kimmj\HCI\VR AR\TangoEdgeSpanning\TangoEdge
   m_IsLocked: 0
   m_FolderTreeState:
     scrollPos: {x: 0, y: 779}
-    m_SelectedIDs: c4260000
-    m_LastClickedID: 9924
+    m_SelectedIDs: d8270000
+    m_LastClickedID: 10200
     m_ExpandedIDs: 00000000c0250000002600002426000030260000382600003e2600004e26000090260000a4260000a6260000e6260000082700002e270000e82700000228000018280000242800003029000000ca9a3bffffff7f
     m_RenameOverlay:
       m_UserAcceptedRename: 0
@@ -511,23 +511,23 @@ MonoBehaviour:
     height: 279
   m_TreeViewState:
     scrollPos: {x: 0, y: 0}
-    m_SelectedIDs: ca280000
-    m_LastClickedID: 10442
-    m_ExpandedIDs: e4fbffff00000000
+    m_SelectedIDs: 
+    m_LastClickedID: 0
+    m_ExpandedIDs: d44cffff544dffff7c4effffe851ffff6852ffff9053ffff025dffff825dffffaa5effff8673ffff0674ffff2e75ffff0e80ffff8e80ffffb681ffff0293ffff8293ffffaa94ffff0e97ffff8e97ffffb698ffff869bffff069cffff2e9dffff42a8ffffc2a8ffffeaa9ffffdcd6ffff5cd7ffff84d8ffffc8daffff48dbffff70dcffff98dfffff18e0ffff40e1ffff9ee5ffff1ee6ffff46e7ffff9aebffff1aecffff42edffff82f2ffff04f3ffff2cf4ffffe4fbffff00000000
     m_RenameOverlay:
       m_UserAcceptedRename: 0
-      m_Name: 
-      m_OriginalName: 
+      m_Name: Line Renderer
+      m_OriginalName: Line Renderer
       m_EditFieldRect:
         serializedVersion: 2
         x: 0
         y: 0
         width: 0
         height: 0
-      m_UserData: 0
+      m_UserData: 13994
       m_IsWaitingForDelay: 0
       m_IsRenaming: 0
-      m_OriginalEventType: 11
+      m_OriginalEventType: 0
       m_IsRenamingFilename: 0
       m_ClientGUIView: {fileID: 4}
     m_SearchString: 
