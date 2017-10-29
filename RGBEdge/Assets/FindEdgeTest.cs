@@ -14,72 +14,21 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay {
     private Color temp;
     private float t;
     private TangoApplication m_tangoApplication;
+    private TangoUnityImageData m_imageBuffer;
     // texture data
     bool isDirty = false;
     byte[] m_yuv12 = null;
     int m_width;
     int m_height;
     Camera m_cam;
+    //int m_eventCount;
+    private bool m_waitingForImage;
 
     void ITangoVideoOverlay.OnTangoImageAvailableEventHandler(TangoEnums.TangoCameraId cameraId,
                                                               TangoUnityImageData imageBuffer)
     {
-        byte[] yuv = imageBuffer.data;
-        int m_height = Convert.ToInt32(imageBuffer.width);
-        int m_width = Convert.ToInt32(imageBuffer.height);
-        YV12ToPhoto(yuv, m_width, m_height, out m_texture);
-        /*
-        int ii = 0;
-        int ij = 0;
-        int di = +1;
-        int dj = +1;
-        try
-        {
-            int a = 0;
-            for (int i = 0, ci = ii; i < imageBuffer.height; ++i, ci += di)
-            {
-                for (int j = 0, cj = ij; j < imageBuffer.width; ++j, cj += dj)
-                {
-                    int y = (0xff & ((int)yuv[ci * imageBuffer.width + cj]));
-                    int u = (0xff & ((int)yuv[frameSize + (ci >> 1) * imageBuffer.width + (cj & ~1) + 0]));
-                    int v = (0xff & ((int)yuv[frameSize + (ci >> 1) * imageBuffer.width + (cj & ~1) + 1]));
-                    y = y < 16 ? 16 : y;
-
-                    int b = (int)(1.164f * (y - 16) + 1.596f * (v - 128));
-                    int g = (int)(1.164f * (y - 16) - 0.813f * (v - 128) - 0.391f * (u - 128));
-                    int r = (int)(1.164f * (y - 16) + 2.018f * (u - 128));
-
-                    r = r < 0 ? 0 : (r > 255 ? 255 : r);
-                    g = g < 0 ? 0 : (g > 255 ? 255 : g);
-                    b = b < 0 ? 0 : (b > 255 ? 255 : b);
-
-                    argb[a++] = Convert.ToByte(Convert.ToInt32(0xff000000) | (r << 16) | (g << 8) | b);
-                    //Color32[] argbArray = ColorHelper.YUV_NV21_TO_RGB(imageBuffer.data, 1920, 1080);
-                }
-            }
-        } catch(System.IndexOutOfRangeException ie)
-        {
-            Debug.LogError("<<<<<<<<<<<< index out of bound!");
-        } catch(NullReferenceException ne)
-        {
-            Debug.LogError("<<<<<<<<<<<< null reference!");
-        }
-        Color32[] colorArray = new Color32[argb.Length / 4];
-        for (int i = 0; i < argb.Length; i += 4)
-        {
-            var color = new Color32(argb[i + 0], argb[i + 1], argb[i + 2], argb[i + 3]);
-            colorArray[i / 4] = color;
-        }
-        m_texture.SetPixels32(colorArray);
-        */
-    }
-    Color YCbCrtoRGB(byte y, byte cb, byte cr)
-    {
-        return new Color(
-         y + 1.402f * cr,
-         y - 0.344136f * cb - 0.714136f * cr,
-         y + 1.772f * cb
-        );
+        m_imageBuffer = imageBuffer;
+        m_waitingForImage = false;
     }
 
     // Use this for initialization
@@ -95,6 +44,7 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay {
         }
 
         m_cam = Camera.main;
+        //m_eventCount = 0;
         img = new Texture2D(m_cam.pixelWidth, m_cam.pixelHeight);
         //initialize textures
         rImg = new Texture2D(img.width, img.height);
@@ -123,8 +73,20 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay {
 	
 	// Update is called once per frame
 	void Update () {
-        CalculateEdges();
-	}
+        // CalculateEdges();
+        if (Input.GetMouseButtonDown(0))
+        {
+            StartCoroutine(_WaitForImage(Input.mousePosition));
+        }
+
+        if (Input.GetKey(KeyCode.Escape))
+        {
+            // This is a fix for a lifecycle issue where calling
+            // Application.Quit() here, and restarting the application
+            // immediately results in a deadlocked app.
+            AndroidHelper.AndroidQuit();
+        }
+    }
 
     public static Color YUV2Color(byte y, byte u, byte v)
     {
@@ -321,4 +283,25 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay {
         return true;
     }
 
+    private IEnumerator _WaitForImage(Vector2 touchPosition)
+    {
+        m_waitingForImage = true;
+
+        // Turn on the camera and wait for a single depth update
+
+        m_tangoApplication.EnableVideoOverlay = true;
+        while (m_waitingForImage)
+        {
+            yield return null;
+        }
+
+        m_tangoApplication.EnableVideoOverlay = false;
+
+        m_cam = Camera.main;
+        byte[] yuv = m_imageBuffer.data;
+        int m_height = Convert.ToInt32(m_imageBuffer.width);
+        int m_width = Convert.ToInt32(m_imageBuffer.height);
+        YV12ToPhoto(yuv, m_width, m_height, out m_texture);
+        CalculateEdges();
+    }
 }
