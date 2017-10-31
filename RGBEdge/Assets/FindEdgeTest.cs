@@ -5,8 +5,8 @@ using System.Runtime.InteropServices;
 using Tango;
 using UnityEngine;
 
-public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay {
-    private Texture2D m_texture;
+public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay, ITangoPointCloud {
+    private Texture2D m_texture, m_rgbTexture;
     public float th = 0.09f;
     private Texture2D img, rImg, gImg, bImg, kImg, roImg, goImg, boImg, koImg, ORimg, 
               ANDimg, SUMimg, AVGimg;
@@ -15,6 +15,7 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay {
     private float t;
     private TangoApplication m_tangoApplication;
     private TangoUnityImageData m_imageBuffer;
+    private TangoPointCloud m_pointCloud;
     // texture data
     bool isDirty = false;
     byte[] m_yuv12 = null;
@@ -23,11 +24,27 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay {
     Camera m_cam;
     //int m_eventCount;
     private bool m_waitingForImage;
+    private bool m_waitingForDepth;
+    public Shader yuv2rgbShader;
+    private WebCamTexture camTex;
 
     void ITangoVideoOverlay.OnTangoImageAvailableEventHandler(TangoEnums.TangoCameraId cameraId,
                                                               TangoUnityImageData imageBuffer)
     {
-        m_imageBuffer = imageBuffer;
+        if (m_waitingForImage)
+        {
+            //int m_height = Convert.ToInt32(m_imageBuffer.width);
+            //int m_width = Convert.ToInt32(m_imageBuffer.height);
+            YV12ToRGB(imageBuffer);
+
+
+            m_imageBuffer = imageBuffer;
+
+            //Texture2D m_rgbTexture = new Texture2D((int)imageBuffer.width, (int)imageBuffer.height, TextureFormat.RGBA32, false);
+            //Color32[] argbArray = ColorHelper.YUV_NV21_TO_RGB(imageBuffer.data, (int)imageBuffer.width, (int)imageBuffer.height);
+            //m_rgbTexture.SetPixels32(argbArray);
+        }
+
         m_waitingForImage = false;
     }
 
@@ -69,11 +86,13 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay {
         ANDimg = new Texture2D(img.width, img.height);
         SUMimg = new Texture2D(img.width, img.height);
         AVGimg = new Texture2D(img.width, img.height);
+
+        m_waitingForImage = false;
     }
 	
 	// Update is called once per frame
 	void Update () {
-        // CalculateEdges();
+        
         if (Input.GetMouseButtonDown(0))
         {
             StartCoroutine(_WaitForImage(Input.mousePosition));
@@ -86,7 +105,10 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay {
             // immediately results in a deadlocked app.
             AndroidHelper.AndroidQuit();
         }
+        
     }
+
+    
 
     public static Color YUV2Color(byte y, byte u, byte v)
     {
@@ -104,7 +126,8 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay {
 
     void CalculateEdges()
     {
-        img = m_texture;
+        // img = m_texture;
+        // Graphics.CopyTexture(m_texture, img);
         //calculate new textures
         for (int x = 0; x < img.width; x++)
         {
@@ -199,8 +222,8 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay {
 
             GUILayout.EndHorizontal();
         }
+    
     */
-
     float gradientValue(int ex, int why, int colorVal, Texture2D image)
     {
         float lx = 0f;
@@ -244,9 +267,13 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay {
         output.Apply();
     }
 
-    public bool YV12ToPhoto(byte[] data, int width, int height, out Texture2D photo)
+    // public bool YV12ToPhoto(byte[] data, int width, int height) //, out Texture2D photo)
+    public bool YV12ToRGB(TangoUnityImageData imageBuffer)
     {
-        photo = new Texture2D(width, height);
+        // Texture2D photo = new Texture2D(width, height);
+        int width = (int)imageBuffer.width;
+        int height = (int)imageBuffer.height;
+        m_texture = new Texture2D(width, height);
 
         int uv_buffer_offset = width * height;
 
@@ -261,9 +288,9 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay {
                 }
 
                 // Get the YUV color for this pixel.
-                int yValue = data[(i * width) + j];
-                int uValue = data[uv_buffer_offset + ((i / 2) * width) + x_index + 1];
-                int vValue = data[uv_buffer_offset + ((i / 2) * width) + x_index];
+                int yValue = imageBuffer.data[(i * width) + j];
+                int uValue = imageBuffer.data[uv_buffer_offset + ((i / 2) * width) + x_index + 1];
+                int vValue = imageBuffer.data[uv_buffer_offset + ((i / 2) * width) + x_index];
 
                 // Convert the YUV value to RGB.
                 float r = yValue + (1.370705f * (vValue - 128));
@@ -276,7 +303,7 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay {
                 co.r = r < 0 ? 0 : (r > 255 ? 1 : r / 255.0f);
                 co.a = 1.0f;
 
-                photo.SetPixel(width - j - 1, height - i - 1, co);
+                m_texture.SetPixel(width - j - 1, height - i - 1, co);
             }
         }
 
@@ -288,7 +315,7 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay {
         m_waitingForImage = true;
 
         // Turn on the camera and wait for a single depth update
-
+        
         m_tangoApplication.EnableVideoOverlay = true;
         while (m_waitingForImage)
         {
@@ -297,11 +324,80 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay {
 
         m_tangoApplication.EnableVideoOverlay = false;
 
+        int num_pixel = 25;
         m_cam = Camera.main;
         byte[] yuv = m_imageBuffer.data;
-        int m_height = Convert.ToInt32(m_imageBuffer.width);
-        int m_width = Convert.ToInt32(m_imageBuffer.height);
-        YV12ToPhoto(yuv, m_width, m_height, out m_texture);
-        CalculateEdges();
+        int width = (int)m_imageBuffer.width;
+        int height = (int)m_imageBuffer.height;
+        m_texture = new Texture2D(51, 51);
+
+        int stride = (int)m_imageBuffer.stride;
+        for(int i = -1*num_pixel; i < num_pixel; i++)
+        {
+            for(int j = -1*num_pixel; j < num_pixel; j++)
+            {
+                float x_pos = touchPosition.x + i;
+                float y_pos = touchPosition.y + j;
+                if (x_pos < 0 || x_pos > width || y_pos < 0 || y_pos > height)
+                {   
+                    continue;
+                }
+                else
+                {
+                    Vector3 rgb=_GetRgbFromImageBuffer(m_imageBuffer, (int)x_pos, (int)y_pos);
+                    Color co = new Color(rgb.x < 0 ? 0 : (rgb.x > 255 ? 1 : rgb.x / 255.0f),
+                        rgb.y < 0 ? 0 : (rgb.y > 255 ? 1 : rgb.y / 255.0f),
+                        rgb.z < 0 ? 0 : (rgb.z > 255 ? 1 : rgb.z / 255.0f),
+                        1.0f);
+
+                    m_texture.SetPixel(num_pixel + i, num_pixel + j, co);
+                }
+            }
+        }
+        
+        //YV12ToPhoto(yuv, m_width, m_height, out m_texture);
+        //CalculateEdges();
+    }
+
+    /// <summary>
+    /// Returns the RGB value at a given theta and phi given a TangoImageBuffer.
+    /// </summary>
+    /// <param name="buffer">The TangoImageBuffer to sample.</param>
+    /// <param name="i">Range from [0..height].</param>
+    /// <param name="j">Range from [0..width].</param>
+    /// <returns>The RGB value on the buffer at the given theta and phi.</returns>
+    private Vector3 _GetRgbFromImageBuffer(Tango.TangoUnityImageData buffer, int i, int j)
+    {
+        int width = (int)buffer.width;
+        int height = (int)buffer.height;
+        int uv_buffer_offset = width * height;
+
+        int x_index = j;
+        if (j % 2 != 0)
+        {
+            x_index = j - 1;
+        }
+
+        // Get the YUV color for this pixel.
+        int yValue = buffer.data[(i * width) + j];
+        int uValue = buffer.data[uv_buffer_offset + ((i / 2) * width) + x_index + 1];
+        int vValue = buffer.data[uv_buffer_offset + ((i / 2) * width) + x_index];
+
+        // Convert the YUV value to RGB.
+        float r = yValue + (1.370705f * (vValue - 128));
+        float g = yValue - (0.689001f * (vValue - 128)) - (0.337633f * (uValue - 128));
+        float b = yValue + (1.732446f * (uValue - 128));
+        Vector3 result = new Vector3(r / 255.0f, g / 255.0f, b / 255.0f);
+
+        // Gamma correct color to linear scale.
+        result.x = Mathf.Pow(Mathf.Max(0.0f, result.x), 2.2f);
+        result.y = Mathf.Pow(Mathf.Max(0.0f, result.y), 2.2f);
+        result.z = Mathf.Pow(Mathf.Max(0.0f, result.z), 2.2f);
+        return result;
+    }
+
+    void ITangoPointCloud.OnTangoPointCloudAvailable(TangoPointCloudData pointCloud)
+    {
+        m_waitingForDepth = false;
     }
 }
