@@ -21,28 +21,22 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay, ITangoPointCloud 
     byte[] m_yuv12 = null;
     int m_width;
     int m_height;
+    int m_numPixel = 25;
     Camera m_cam;
     //int m_eventCount;
     private bool m_waitingForImage;
     private bool m_waitingForDepth;
     public Shader yuv2rgbShader;
-    private WebCamTexture camTex;
+    List<ParticleSystem.Particle> pointList;
+    List<ParticleSystem.Particle> basicBrushPointList = new List<ParticleSystem.Particle>();
 
     void ITangoVideoOverlay.OnTangoImageAvailableEventHandler(TangoEnums.TangoCameraId cameraId,
                                                               TangoUnityImageData imageBuffer)
     {
         if (m_waitingForImage)
         {
-            //int m_height = Convert.ToInt32(m_imageBuffer.width);
-            //int m_width = Convert.ToInt32(m_imageBuffer.height);
-            YV12ToRGB(imageBuffer);
-
-
+            // YV12ToRGB(imageBuffer);
             m_imageBuffer = imageBuffer;
-
-            //Texture2D m_rgbTexture = new Texture2D((int)imageBuffer.width, (int)imageBuffer.height, TextureFormat.RGBA32, false);
-            //Color32[] argbArray = ColorHelper.YUV_NV21_TO_RGB(imageBuffer.data, (int)imageBuffer.width, (int)imageBuffer.height);
-            //m_rgbTexture.SetPixels32(argbArray);
         }
 
         m_waitingForImage = false;
@@ -61,32 +55,33 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay, ITangoPointCloud 
         }
 
         m_cam = Camera.main;
-        //m_eventCount = 0;
-        img = new Texture2D(m_cam.pixelWidth, m_cam.pixelHeight);
-        //initialize textures
-        rImg = new Texture2D(img.width, img.height);
-        bImg = new Texture2D(img.width, img.height);
-        gImg = new Texture2D(img.width, img.height);
-        kImg = new Texture2D(img.width, img.height);
-        //initialize gradient arrays
-        rL = new float[img.width, img.height];
-        gL = new float[img.width, img.height];
-        bL = new float[img.width, img.height];
-        kL = new float[img.width, img.height];
-        ORL = new float[img.width, img.height];
-        ANDL = new float[img.width, img.height];
-        SUML = new float[img.width, img.height];
-        AVGL = new float[img.width, img.height];
-        //initialize final textures
-        roImg = new Texture2D(img.width, img.height);
-        goImg = new Texture2D(img.width, img.height);
-        boImg = new Texture2D(img.width, img.height);
-        koImg = new Texture2D(img.width, img.height);
-        ORimg = new Texture2D(img.width, img.height);
-        ANDimg = new Texture2D(img.width, img.height);
-        SUMimg = new Texture2D(img.width, img.height);
-        AVGimg = new Texture2D(img.width, img.height);
 
+        img = new Texture2D(m_numPixel*2 + 1, m_numPixel * 2 + 1);
+        //initialize textures
+        rImg = new Texture2D(m_numPixel * 2 + 1, m_numPixel * 2 + 1);
+        bImg = new Texture2D(m_numPixel * 2 + 1, m_numPixel * 2 + 1);
+        gImg = new Texture2D(m_numPixel * 2 + 1, m_numPixel * 2 + 1);
+        kImg = new Texture2D(m_numPixel * 2 + 1, m_numPixel * 2 + 1);
+        //initialize gradient arrays
+        rL = new float[m_numPixel * 2 + 1, m_numPixel * 2 + 1];
+        gL = new float[m_numPixel * 2 + 1, m_numPixel * 2 + 1];
+        bL = new float[m_numPixel * 2 + 1, m_numPixel * 2 + 1];
+        kL = new float[m_numPixel * 2 + 1, m_numPixel * 2 + 1];
+        ORL = new float[m_numPixel * 2 + 1, m_numPixel * 2 + 1];
+        ANDL = new float[m_numPixel * 2 + 1, m_numPixel * 2 + 1];
+        SUML = new float[m_numPixel * 2 + 1, m_numPixel * 2 + 1];
+        AVGL = new float[m_numPixel * 2 + 1, m_numPixel * 2 + 1];
+        //initialize final textures
+        roImg = new Texture2D(m_numPixel * 2 + 1, m_numPixel * 2 + 1);
+        goImg = new Texture2D(m_numPixel * 2 + 1, m_numPixel * 2 + 1);
+        boImg = new Texture2D(m_numPixel * 2 + 1, m_numPixel * 2 + 1);
+        koImg = new Texture2D(m_numPixel * 2 + 1, m_numPixel * 2 + 1);
+        ORimg = new Texture2D(m_numPixel * 2 + 1, m_numPixel * 2 + 1);
+        ANDimg = new Texture2D(m_numPixel * 2 + 1, m_numPixel * 2 + 1);
+        SUMimg = new Texture2D(m_numPixel * 2 + 1, m_numPixel * 2 + 1);
+        AVGimg = new Texture2D(m_numPixel * 2 + 1, m_numPixel * 2 + 1);
+
+        pointList = basicBrushPointList;
         m_waitingForImage = false;
     }
 	
@@ -95,7 +90,7 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay, ITangoPointCloud 
         
         if (Input.GetMouseButtonDown(0))
         {
-            StartCoroutine(_WaitForImage(Input.mousePosition));
+            StartCoroutine(_WaitForImage(Input.mousePosition)); 
         }
 
         if (Input.GetKey(KeyCode.Escape))
@@ -107,8 +102,6 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay, ITangoPointCloud 
         }
         
     }
-
-    
 
     public static Color YUV2Color(byte y, byte u, byte v)
     {
@@ -126,9 +119,10 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay, ITangoPointCloud 
 
     void CalculateEdges()
     {
-        // img = m_texture;
-        // Graphics.CopyTexture(m_texture, img);
+        img = m_texture;
+
         //calculate new textures
+        /*
         for (int x = 0; x < img.width; x++)
         {
             for (int y = 0; y < img.height; y++)
@@ -142,10 +136,12 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay, ITangoPointCloud 
                 kImg.SetPixel(x, y, new Color(t, t, t));
             }
         }
+        */
         rImg.Apply();
         gImg.Apply();
         bImg.Apply();
         kImg.Apply();
+        
 
         //calculate gradient values
         for (int x = 0; x < img.width; x++)
@@ -174,54 +170,54 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay, ITangoPointCloud 
     }
 
     /*
-        // Update is called once per frame
-        void OnGUI()
-        {
-            GUILayout.BeginHorizontal();
+    // Update is called once per frame
+    void OnGUI()
+    {
+        GUILayout.BeginHorizontal();
 
-            GUILayout.BeginVertical();
-            GUILayout.Label("original");
-            GUILayout.Label(camTex);
-            GUILayout.Label("red");
-            GUILayout.Label(rImg);
-            GUILayout.Label("blue");
-            GUILayout.Label(bImg);
-            GUILayout.EndVertical();
+        GUILayout.BeginVertical();
+        GUILayout.Label("original");
+        GUILayout.Label(camTex);
+        GUILayout.Label("red");
+        GUILayout.Label(rImg);
+        GUILayout.Label("blue");
+        GUILayout.Label(bImg);
+        GUILayout.EndVertical();
 
-            GUILayout.BeginVertical();
-            GUILayout.Label("green");
-            GUILayout.Label(gImg);
-            GUILayout.Label("grey");
-            GUILayout.Label(kImg);
-            GUILayout.Label("grey detection");
-            GUILayout.Label(koImg);
-            GUILayout.EndVertical();
+        GUILayout.BeginVertical();
+        GUILayout.Label("green");
+        GUILayout.Label(gImg);
+        GUILayout.Label("grey");
+        GUILayout.Label(kImg);
+        GUILayout.Label("grey detection");
+        GUILayout.Label(koImg);
+        GUILayout.EndVertical();
 
-            GUILayout.BeginVertical();
-            GUILayout.Label("red detection");
-            GUILayout.Label(roImg);
-            GUILayout.Label("green detection");
-            GUILayout.Label(goImg);
-            GUILayout.Label("blue detection");
-            GUILayout.Label(boImg);
-            GUILayout.EndVertical();
+        GUILayout.BeginVertical();
+        GUILayout.Label("red detection");
+        GUILayout.Label(roImg);
+        GUILayout.Label("green detection");
+        GUILayout.Label(goImg);
+        GUILayout.Label("blue detection");
+        GUILayout.Label(boImg);
+        GUILayout.EndVertical();
 
-            GUILayout.BeginVertical();
-            GUILayout.Label("OR detection");
-            GUILayout.Label(ORimg);
-            GUILayout.Label("AND detection");
-            GUILayout.Label(ANDimg);
-            GUILayout.Label("SUM detection");
-            GUILayout.Label(SUMimg);
-            GUILayout.EndVertical();
+        GUILayout.BeginVertical();
+        GUILayout.Label("OR detection");
+        GUILayout.Label(ORimg);
+        GUILayout.Label("AND detection");
+        GUILayout.Label(ANDimg);
+        GUILayout.Label("SUM detection");
+        GUILayout.Label(SUMimg);
+        GUILayout.EndVertical();
 
-            GUILayout.BeginVertical();
-            GUILayout.Label("Average detection");
-            GUILayout.Label(AVGimg);
-            GUILayout.EndVertical();
+        GUILayout.BeginVertical();
+        GUILayout.Label("Average detection");
+        GUILayout.Label(AVGimg);
+        GUILayout.EndVertical();
 
-            GUILayout.EndHorizontal();
-        }
+        GUILayout.EndHorizontal();
+    }
     
     */
     float gradientValue(int ex, int why, int colorVal, Texture2D image)
@@ -324,7 +320,7 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay, ITangoPointCloud 
 
         m_tangoApplication.EnableVideoOverlay = false;
 
-        int num_pixel = 25;
+        
         m_cam = Camera.main;
         byte[] yuv = m_imageBuffer.data;
         int width = (int)m_imageBuffer.width;
@@ -332,9 +328,9 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay, ITangoPointCloud 
         m_texture = new Texture2D(51, 51);
 
         int stride = (int)m_imageBuffer.stride;
-        for(int i = -1*num_pixel; i < num_pixel; i++)
+        for(int i = -1* m_numPixel; i < m_numPixel; i++)
         {
-            for(int j = -1*num_pixel; j < num_pixel; j++)
+            for(int j = -1* m_numPixel; j < m_numPixel; j++)
             {
                 float x_pos = touchPosition.x + i;
                 float y_pos = touchPosition.y + j;
@@ -350,13 +346,98 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay, ITangoPointCloud 
                         rgb.z < 0 ? 0 : (rgb.z > 255 ? 1 : rgb.z / 255.0f),
                         1.0f);
 
-                    m_texture.SetPixel(num_pixel + i, num_pixel + j, co);
+                    rImg.SetPixel(m_numPixel + i, m_numPixel + j,
+                        new Color(rgb.x < 0 ? 0 : (rgb.x > 255 ? 1 : rgb.x / 255.0f),0,0));
+                    gImg.SetPixel(m_numPixel + i, m_numPixel + j,
+                        new Color(0, rgb.y < 0 ? 0 : (rgb.y > 255 ? 1 : rgb.y / 255.0f), 0));
+                    bImg.SetPixel(m_numPixel + i, m_numPixel + j,
+                        new Color(0,0, rgb.z < 0 ? 0 : (rgb.z > 255 ? 1 : rgb.z / 255.0f)));
+                    kImg.SetPixel(m_numPixel + i, m_numPixel + j, 
+                                  new Color((rgb.x < 0 ? 0 : (rgb.x > 255 ? 1 : rgb.x / 255.0f))/3f,
+                                  (rgb.y < 0 ? 0 : (rgb.y > 255 ? 1 : rgb.y / 255.0f))/3f,
+                                  (rgb.z < 0 ? 0 : (rgb.z > 255 ? 1 : rgb.z / 255.0f))/3f));
+                    m_texture.SetPixel(m_numPixel + i, m_numPixel + j, co);
                 }
             }
         }
         
         //YV12ToPhoto(yuv, m_width, m_height, out m_texture);
-        //CalculateEdges();
+        CalculateEdges();
+        // find the nearest point on the edges
+        int[] near_pos = FindNearestPointOnEdges(AVGimg);
+        // draw the point to the nearest position on the screen (if it is near enough)
+
+    }
+
+    private int[] FindNearestPointOnEdges(Texture2D edges)
+    {
+        int[] min = { 100, 100 };
+        for(int i = 0; i < edges.width; i++)
+        {
+            for(int j = 0; j < edges.height; j++)
+            {
+                if(edges.GetPixel(i, j) == Color.black)
+                {
+                    if(Math.Pow(i,2)+Math.Pow(j,2) < Math.Pow(min[0],2)+Math.Pow(min[1],2))
+                    {
+                        min[0] = i;
+                        min[1] = j;
+                    }
+                } 
+            }
+        }
+        if (min[0] == 100 && min[1] == 100)
+            min[0] = 0; min[1] = 0;
+        return min;
+    }
+
+    // draw one mouse click, one brush to canvas
+    void DrawPoint(Vector3 p)
+    {
+        var particle = new ParticleSystem.Particle();
+
+        particle.position = p;
+        particle.rotation = UnityEngine.Random.Range(0f, 359f);
+
+        pointList.Add(particle);
+    }
+    /*
+    // a complete array of particles is input into a particular particle system
+    public void UpdateParticles()
+    {
+        // Note: this may not be the most efficient way to do this, if we hit performance issues start here
+        var asArray = pointList.ToArray();
+
+        if (selectedTexture == 0)
+        {
+            basicBrushParticleSystem.SetParticles(asArray, asArray.Length);
+        }
+        else if (selectedTexture == 1)
+        {
+            lflBrushParticleSystem.SetParticles(asArray, asArray.Length);
+        }
+        else if (selectedTexture == 2)
+        {
+            splatterBrushParticleSystem.SetParticles(asArray, asArray.Length);
+        }
+        else
+        {
+            Debug.Log("Something is wrong.");
+        }
+    }
+    */
+
+    // remove all of the points from one particular particle array
+    public void ClearPoints()
+    {
+        pointList.Clear();
+
+        // particleSystemNeedsUpdate = true;
+    }
+
+    private void drawPoint(float[,] points)
+    {
+
     }
 
     /// <summary>
