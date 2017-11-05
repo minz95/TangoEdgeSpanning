@@ -18,16 +18,22 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay, ITangoPointCloud 
     private TangoPointCloud m_pointCloud;
     int m_width;
     int m_height;
-    int m_numPixel = 100;
+    int m_numPixel = 25;
+    int m_touchCount;
     Camera m_cam;
     private bool m_waitingForImage;
     private bool m_waitingForDepth;
-    public Shader yuv2rgbShader;
+    private bool m_isTouching;
+    public GameObject lineDrawPrefabs;
+    private GameObject lineDrawPrefab;
+    public GameObject particlePrefab;
+    private LineRenderer lineRenderer;
+    private List<Vector3> drawPoints = new List<Vector3>();
     List<ParticleSystem.Particle> pointList;
     List<ParticleSystem.Particle> basicBrushPointList = new List<ParticleSystem.Particle>();
 
-    public ParticleSystem basicBrushParticleSystem;
-    bool particleSystemNeedsUpdate = false;
+    //public ParticleSystem basicBrushParticleSystem;
+    //bool particleSystemNeedsUpdate = false;
 
     void ITangoVideoOverlay.OnTangoImageAvailableEventHandler(TangoEnums.TangoCameraId cameraId,
                                                               TangoUnityImageData imageBuffer)
@@ -82,22 +88,61 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay, ITangoPointCloud 
         AVGimg = new Texture2D(m_numPixel * 2 + 1, m_numPixel * 2 + 1);
 
         pointList = basicBrushPointList;
-        basicBrushParticleSystem = FindObjectOfType<ParticleSystem>();
+        //basicBrushParticleSystem = FindObjectOfType<ParticleSystem>();
         m_waitingForImage = false;
+        m_isTouching = false;
+        m_touchCount = 0;
     }
 	
 	// Update is called once per frame
 	void Update () {
         
-        if (Input.touches.Length>0)
+        if (Input.touchCount > 0)
         {
-            StartCoroutine(_WaitForImage(Input.touches[0].position));
-
+            if (Input.touches[0].phase == TouchPhase.Began)
+            {
+                Debug.Log("<<<<<<<<<<<<<<< touch phase began");
+                m_isTouching = true;
+                lineDrawPrefab = Instantiate(lineDrawPrefabs) as GameObject;
+                lineRenderer = lineDrawPrefab.GetComponent<LineRenderer>();
+                lineRenderer.positionCount = 0;
+            } else if(Input.touches[0].phase == TouchPhase.Ended)
+            {
+                Debug.Log("<<<<<<<<<<<<<<<<<<<<< touch phase ended");
+                m_isTouching = false;
+                StartCoroutine(_WaitForImage(Input.touches[0].position));
+                drawPoints.Clear();
+            }
+            /*
             if (particleSystemNeedsUpdate)
             {
                 UpdateParticles();
                 particleSystemNeedsUpdate = false;
             }
+            */
+        }
+
+        if(m_isTouching)
+        {
+            if(m_touchCount == 0)
+            {
+                Debug.Log("<<<<<<<<<<<<< touching: before coroutine");
+                StartCoroutine(_WaitForImage(Input.touches[0].position));
+                /*
+                if (!drawPoints.Contains(Input.touches[0].position))
+                {
+                    Debug.Log("<<<<<<<<<<<<<<< draw point added and draw line");
+                    drawPoints.Add(Input.touches[0].position);
+                    lineRenderer.positionCount = drawPoints.Count;
+                    lineRenderer.SetPosition(drawPoints.Count - 1, Input.touches[0].position);
+                }
+                */
+                m_touchCount = 20;
+            } else
+            {
+                m_touchCount--;
+            }
+            
         }
 
         if (Input.GetKey(KeyCode.Escape))
@@ -182,16 +227,19 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay, ITangoPointCloud 
     void OnGUI()
     {
         GUILayout.BeginHorizontal();
-
+        
         GUILayout.BeginVertical();
+        
         GUILayout.Label("original");
         GUILayout.Label(img);
+        
         GUILayout.Label("red");
         GUILayout.Label(rImg);
+        
         GUILayout.Label("blue");
         GUILayout.Label(bImg);
         GUILayout.EndVertical();
-
+        
         GUILayout.BeginVertical();
         GUILayout.Label("green");
         GUILayout.Label(gImg);
@@ -209,7 +257,7 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay, ITangoPointCloud 
         GUILayout.Label("blue detection");
         GUILayout.Label(boImg);
         GUILayout.EndVertical();
-
+        
         GUILayout.BeginVertical();
         GUILayout.Label("OR detection");
         GUILayout.Label(ORimg);
@@ -218,12 +266,12 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay, ITangoPointCloud 
         GUILayout.Label("SUM detection");
         GUILayout.Label(SUMimg);
         GUILayout.EndVertical();
-
+        
         GUILayout.BeginVertical();
         GUILayout.Label("Average detection");
         GUILayout.Label(AVGimg);
         GUILayout.EndVertical();
-
+        
         GUILayout.EndHorizontal();
     }
     
@@ -270,7 +318,7 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay, ITangoPointCloud 
         }
         output.Apply();
     }
-
+    /*
     // public bool YV12ToPhoto(byte[] data, int width, int height) //, out Texture2D photo)
     public bool YV12ToRGB(TangoUnityImageData imageBuffer)
     {
@@ -313,7 +361,7 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay, ITangoPointCloud 
 
         return true;
     }
-
+    */
     private IEnumerator _WaitForImage(Vector2 touchPosition)
     {
         m_waitingForImage = true;
@@ -330,18 +378,33 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay, ITangoPointCloud 
 
         m_cam = Camera.main;
         byte[] yuv = m_imageBuffer.data;
-        int width = (int)m_imageBuffer.width;
-        int height = (int)m_imageBuffer.height;
+        int width = (int)Screen.width;
+        int height = (int)Screen.height;
+        //Debug.Log("<<<<<<<<<<<<<<<<< width, height: " + m_imageBuffer.width + ", " + m_imageBuffer.height);
         m_texture = new Texture2D(m_numPixel*2+1, m_numPixel*2+1);
-        
-        Debug.Log("<<<<<< touchPosition : " + touchPosition.x + ", " + touchPosition.y + ", width: " + width + ", height:" + height);
+        //Vector2 uvCoord = new Vector2(((touchPosition.x) / width - 0.5f) * m_imageBuffer.width,
+        //                                ((touchPosition.y) / height -0.5f) * m_imageBuffer.height);
+        Debug.Log("<<<<<<<<<<<< touch point sexy (x, y): " + touchPosition.x + ", " + touchPosition.y);
+        Vector2 uvCoord = m_cam.ScreenToViewportPoint(touchPosition);
+        //Debug.Log("<<<<<<<<<<<< uv nomo (x, y): " + uvCoord.x + ", " + uvCoord.y);
+        TangoARScreen arScreen = m_cam.gameObject.GetComponent<TangoARScreen>();
+        uvCoord = arScreen.ViewportPointToCameraImagePoint(uvCoord);
+        if (width > height)
+            uvCoord = new Vector2((1.0f-uvCoord.x) * m_imageBuffer.width, (1.0f-uvCoord.y) * m_imageBuffer.height);
+        else
+            uvCoord = new Vector2((1.0f - uvCoord.x) * m_imageBuffer.height, (1.0f - uvCoord.y) * m_imageBuffer.width);
+        //Debug.Log("<<<<<<<<<<<< uv tango cam img (x, y): " + uvCoord.x + ", " + uvCoord.y);
+        //uvCoord = new Vector2(uvCoord.x, 1.0f - uvCoord.y);
+        //Debug.Log("<<<<<<<<<<<< uv not flipped (x, y): " + uvCoord.x + ", " + uvCoord.y);
+        //uvCoord = m_cam.ViewportToScreenPoint(uvCoord);
+        //Debug.Log("<<<<<<<<<<<< uv coordinate (x, y): "+.x+", "+uvCoord.y);
 
         for (int i = -1* m_numPixel; i < m_numPixel; i++)
         {
             for(int j = -1* m_numPixel; j < m_numPixel; j++)
             {
-                float x_pos = touchPosition.x + i;
-                float y_pos = touchPosition.y + j;
+                float x_pos = uvCoord.x + i;
+                float y_pos = uvCoord.y + j;
                 if (x_pos < 0 || x_pos > width || y_pos < 0 || y_pos > height)
                 {
                     // Debug.Log("<<<<<< Continue : " + (int)x_pos + ", " + (int)y_pos + ", width: " + width + ", height:" + height);
@@ -370,7 +433,7 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay, ITangoPointCloud 
                     */
 
                     Color co = new Color(rgb.x, rgb.y, rgb.z);
-                    m_texture.SetPixel(m_numPixel + i, m_numPixel + j, co);
+                    m_texture.SetPixel(m_numPixel - i, m_numPixel - j, co);
                     // Debug.Log("<<<<<< x: " + (m_numPixel+i) + ", y: "+(m_numPixel+j)+", color: "+co);
                 }
             }
@@ -381,15 +444,21 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay, ITangoPointCloud 
 
         // find the nearest point on the edges
         Vector2 near_pos = FindNearestPointOnEdges(AVGimg);
-        Debug.Log("<<<<<<<<<<<<< nearest position: "+near_pos[0]+","+near_pos[1]);
+        //Debug.Log("<<<<<<<<<<<<< nearest position: "+near_pos[0]+","+near_pos[1]);
         // draw the point to the nearest position on the screen (if it is near enough)
         Vector2 snap_pos = new Vector2(touchPosition.x + near_pos[0], 
                                         touchPosition.y + near_pos[1]);
-        if (m_pointCloud == null) Debug.Log("<<<<<<<<<<<<<<<<<< point cloud is null");
         int near_idx = m_pointCloud.FindClosestPoint(m_cam, snap_pos, 10);
-        Debug.Log("<<<<<<<<<< found the point on the edge: " + m_pointCloud.m_points[near_idx]);
-        DrawPoint(m_pointCloud.m_points[near_idx]);
-        particleSystemNeedsUpdate = true;
+        //Debug.Log("<<<<<<<<<< found the point on the edge: " + m_pointCloud.m_points[near_idx]);
+        //DrawPoint(m_pointCloud.m_points[near_idx]);
+        //particleSystemNeedsUpdate = true;
+        if (!drawPoints.Contains(Input.touches[0].position))
+        {
+            //Debug.Log("<<<<<<<<<<<<<<< draw point added and draw line");
+            drawPoints.Add(m_pointCloud.m_points[near_idx]);
+            lineRenderer.positionCount = drawPoints.Count;
+            //lineRenderer.SetPosition(drawPoints.Count - 1, m_pointCloud.m_points[near_idx]);
+        }
     }
 
     private Vector2 FindNearestPointOnEdges(Texture2D edges)
@@ -402,8 +471,8 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay, ITangoPointCloud 
                 //Debug.Log("edge pixel " + i + "," + j + ": " + edges.GetPixel(i,j));
                 if(edges.GetPixel(i, j) == Color.black)
                 {
-                    if(Math.Pow(i,2)+Math.Pow(j,2) < Math.Pow(min[0],2)+Math.Pow(min[1],2))
-                    {
+                    if(Math.Pow(i-25,2)+Math.Pow(j-25,2) < Math.Pow(min[0]-25,2)+Math.Pow(min[1]-25,2))
+                    { 
                         min[0] = i;
                         min[1] = j;
                     }
@@ -414,7 +483,7 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay, ITangoPointCloud 
             min[0] = 0; min[1] = 0;
         return min;
     }
-
+    /*
     // draw one mouse click, one brush to canvas
     void DrawPoint(Vector3 p)
     {
@@ -449,7 +518,7 @@ public class FindEdgeTest : MonoBehaviour, ITangoVideoOverlay, ITangoPointCloud 
     {
 
     }
-
+    */
     /// <summary>
     /// Returns the RGB value at a given theta and phi given a TangoImageBuffer.
     /// </summary>
