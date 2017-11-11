@@ -2,3 +2,6 @@ sceneSetups:
 - path: Assets/EdgeExample.unity
   isLoaded: 1
   isActive: 1
+- path: Assets/TangoSDK/Examples/Scenes/ExperimentalMeshBuilderWithColor.unity
+  isLoaded: 1
+  isActive: 0
